@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from sandbox.config import load_config, TaskConfig
 from sandbox.container import build_apptainer_cmd
 from sandbox.slurm import detect_slurm_context, build_srun_cmd, SlurmContext
 from sandbox.profiles import get_profile
+from sandbox.cleanup import find_task_dirs, remove_task, parse_duration
 
 
 @click.group()
@@ -98,3 +100,107 @@ def _run_ssh_mode(
     """Handle SSH mode — delegated to ssh module."""
     from sandbox.ssh import run_ssh_session
     run_ssh_session(config, task_dir, output_dir, port, entrypoint_override)
+
+
+@cli.command()
+@click.option("--task-id", required=True, help="Task ID to inspect")
+def audit(task_id: str) -> None:
+    """Show audit information for a completed task."""
+    profile = get_profile()
+    task_dir = Path(profile.tasks_dir) / task_id
+    if not task_dir.exists():
+        # Try prefix match
+        matches = list(Path(profile.tasks_dir).glob(f"{task_id}*"))
+        if len(matches) == 1:
+            task_dir = matches[0]
+        elif len(matches) > 1:
+            click.echo(f"Multiple matches for '{task_id}':")
+            for m in matches:
+                click.echo(f"  {m.name}")
+            return
+        else:
+            click.echo(f"Task not found: {task_id}")
+            return
+
+    meta_path = task_dir / "logs" / "meta.json"
+    manifest_path = task_dir / "logs" / "manifest.txt"
+
+    if meta_path.exists():
+        click.echo("=== Metadata ===")
+        click.echo(meta_path.read_text())
+
+    if manifest_path.exists():
+        click.echo("\n=== Output Manifest ===")
+        click.echo(manifest_path.read_text())
+
+
+@cli.command()
+@click.option("--older-than", default=None, help="Remove tasks older than duration (e.g., 7d, 24h)")
+@click.option("--task-id", default=None, help="Remove a specific task")
+@click.option("--dry-run", is_flag=True, help="Show what would be removed")
+@click.option("--ide-cache", is_flag=True, help="Also clear IDE server cache")
+def cleanup(older_than: str | None, task_id: str | None, dry_run: bool, ide_cache: bool) -> None:
+    """Remove old task directories and logs."""
+    profile = get_profile()
+
+    if task_id:
+        task_dir = Path(profile.tasks_dir) / task_id
+        matches = [task_dir] if task_dir.exists() else list(Path(profile.tasks_dir).glob(f"{task_id}*"))
+        if not matches:
+            click.echo(f"Task not found: {task_id}")
+            return
+        dirs_to_remove = matches
+    elif older_than:
+        seconds = parse_duration(older_than)
+        dirs_to_remove = find_task_dirs(older_than_seconds=seconds)
+    else:
+        click.echo("Specify --older-than or --task-id")
+        return
+
+    for d in dirs_to_remove:
+        if dry_run:
+            click.echo(f"Would remove: {d}")
+        else:
+            click.echo(f"Removing: {d}")
+            remove_task(d)
+
+    if ide_cache and not dry_run:
+        cache_dir = Path(profile.ide_cache_dir)
+        if cache_dir.exists():
+            click.echo(f"Clearing IDE cache: {cache_dir}")
+            shutil.rmtree(cache_dir)
+
+    if not dirs_to_remove:
+        click.echo("Nothing to clean up.")
+
+
+@cli.command()
+@click.option("--task-id", required=True, help="Task ID to stop")
+def stop(task_id: str) -> None:
+    """Stop a running sandbox task by cancelling its SLURM job."""
+    # Find the SLURM job for this task
+    result = subprocess.run(
+        ["squeue", "--me", "--name", f"sandbox-{task_id}", "--format", "%i", "--noheader"],
+        capture_output=True, text=True,
+    )
+    job_ids = result.stdout.strip().splitlines()
+
+    if not job_ids:
+        # Try prefix match
+        result = subprocess.run(
+            ["squeue", "--me", "--format", "%i %j", "--noheader"],
+            capture_output=True, text=True,
+        )
+        for line in result.stdout.strip().splitlines():
+            parts = line.split(None, 1)
+            if len(parts) == 2 and task_id in parts[1]:
+                job_ids.append(parts[0])
+
+    if not job_ids:
+        click.echo(f"No running SLURM job found for task: {task_id}")
+        return
+
+    for jid in job_ids:
+        click.echo(f"Cancelling SLURM job {jid}")
+        subprocess.run(["scancel", jid], check=True)
+    click.echo("Done.")

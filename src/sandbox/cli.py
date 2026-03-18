@@ -43,25 +43,29 @@ def shell(task: str, no_agent: bool, new_alloc: bool, ssh_mode: bool, port: int 
 
     # Run setup.copy operations
     for copy_spec in config.setup.copy:
-        dest = os.path.join(output_dir, os.path.basename(copy_spec.dest))
+        rel_dest = copy_spec.dest.removeprefix("/output/").removeprefix("/output")
+        dest = os.path.join(output_dir, rel_dest)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
         click.echo(f"Copying {copy_spec.src} -> {dest}")
         subprocess.run(["cp", "-r", copy_spec.src, dest], check=True)
 
     # Save config snapshot
-    import shutil
     shutil.copy2(task, os.path.join(logs_dir, "task.yaml"))
 
     # Determine entrypoint
     entrypoint = "bash" if no_agent else None
 
     if ssh_mode:
-        _run_ssh_mode(config, task_dir, output_dir, port, entrypoint)
+        _run_ssh_mode(config, task_dir, output_dir, port, entrypoint, new_alloc)
         return
 
     # Build apptainer command
     apptainer_cmd = build_apptainer_cmd(
         config, output_dir=output_dir, entrypoint_override=entrypoint
     )
+
+    from datetime import datetime, timezone
+    start_time = datetime.now(timezone.utc).isoformat()
 
     # Detect SLURM context and run
     ctx = detect_slurm_context(force_new_alloc=new_alloc)
@@ -71,35 +75,42 @@ def shell(task: str, no_agent: bool, new_alloc: bool, ssh_mode: bool, port: int 
         click.echo(f"Task: {config.task_id}")
         click.echo(f"Output: {output_dir}")
         result = subprocess.run(apptainer_cmd)
-    else:
+    elif ctx in (SlurmContext.LOGIN_NODE, SlurmContext.NEEDS_ALLOCATION):
         click.echo("Requesting SLURM allocation...")
         srun_cmd = build_srun_cmd(config)
         full_cmd = srun_cmd + apptainer_cmd
         click.echo(f"Task: {config.task_id}")
         click.echo(f"Output: {output_dir}")
         result = subprocess.run(full_cmd)
+    else:
+        raise RuntimeError(f"Unknown SLURM context: {ctx}")
 
     # Post-run audit
-    _generate_manifest(output_dir, logs_dir)
+    _post_run_audit(output_dir, logs_dir, config, result.returncode, start_time)
     click.echo(f"\nSession ended (exit code: {result.returncode})")
     click.echo(f"Outputs: {output_dir}")
     click.echo(f"Logs: {logs_dir}")
     sys.exit(result.returncode)
 
 
-def _generate_manifest(output_dir: str, logs_dir: str) -> None:
-    """Generate SHA-256 manifest of all output files."""
-    from sandbox.audit import generate_manifest
+def _post_run_audit(
+    output_dir: str, logs_dir: str, config: TaskConfig,
+    exit_code: int, start_time: str,
+) -> None:
+    """Generate manifest and metadata after a run."""
+    from sandbox.audit import generate_manifest, generate_metadata
     generate_manifest(output_dir, logs_dir)
+    generate_metadata(logs_dir, config.task_id, exit_code, config.image, start_time)
 
 
 def _run_ssh_mode(
     config: TaskConfig, task_dir: str, output_dir: str,
     port: int | None, entrypoint_override: str | None,
+    new_alloc: bool = False,
 ) -> None:
     """Handle SSH mode — delegated to ssh module."""
     from sandbox.ssh import run_ssh_session
-    run_ssh_session(config, task_dir, output_dir, port, entrypoint_override)
+    run_ssh_session(config, task_dir, output_dir, port, entrypoint_override, force_new_alloc=new_alloc)
 
 
 @cli.command()

@@ -56,10 +56,11 @@ def generate_sshd_config(sshd_dir: str, port: int) -> str:
         )
 
     container_home = "/home/sandbox"
+    hostname = socket.gethostname()
     config_content = f"""\
 Port {port}
-ListenAddress 0.0.0.0
-HostKey {host_key_path}
+ListenAddress {hostname}
+HostKey /run/sshd/ssh_host_ed25519_key
 AuthorizedKeysFile {container_home}/.ssh/authorized_keys
 PasswordAuthentication no
 ChallengeResponseAuthentication no
@@ -68,7 +69,7 @@ X11Forwarding no
 PrintMotd no
 AcceptEnv LANG LC_*
 Subsystem sftp /usr/lib/openssh/sftp-server
-PidFile {sshd_dir}/sshd.pid
+PidFile /run/sshd/sshd.pid
 """
     with open(config_path, "w") as f:
         f.write(config_content)
@@ -82,6 +83,7 @@ def run_ssh_session(
     output_dir: str,
     port: int | None,
     entrypoint_override: str | None,
+    force_new_alloc: bool = False,
 ) -> None:
     """Start an SSH-accessible sandbox session."""
     sshd_dir = os.path.join(task_dir, "sshd")
@@ -99,8 +101,8 @@ def run_ssh_session(
         sshd_dir=sshd_dir,
         entrypoint_override="/usr/sbin/sshd",
     )
-    # Append sshd flags after the entrypoint
-    apptainer_cmd.extend(["-D", "-f", sshd_config])
+    # Append sshd flags after the entrypoint (use container path)
+    apptainer_cmd.extend(["-D", "-f", "/run/sshd/sshd_config"])
 
     hostname = socket.gethostname()
     click.echo(f"Sandbox SSH mode starting...")
@@ -113,17 +115,24 @@ def run_ssh_session(
     click.echo(f"\nStop with: sandbox stop --task-id {config.task_id}")
     click.echo("Waiting for connections... (Ctrl+C to stop)\n")
 
-    ctx = detect_slurm_context()
+    from datetime import datetime, timezone
+    start_time = datetime.now(timezone.utc).isoformat()
+
+    ctx = detect_slurm_context(force_new_alloc=force_new_alloc)
     try:
         if ctx == SlurmContext.COMPUTE_NODE:
             result = subprocess.run(apptainer_cmd)
-        else:
+        elif ctx in (SlurmContext.LOGIN_NODE, SlurmContext.NEEDS_ALLOCATION):
             srun_cmd = build_srun_cmd(config)
             result = subprocess.run(srun_cmd + apptainer_cmd)
+        else:
+            raise RuntimeError(f"Unknown SLURM context: {ctx}")
     except KeyboardInterrupt:
         click.echo("\nShutting down SSH sandbox...")
         result = type("Result", (), {"returncode": 0})()
 
-    from sandbox.audit import generate_manifest
-    generate_manifest(output_dir, os.path.join(task_dir, "logs"))
+    logs_dir = os.path.join(task_dir, "logs")
+    from sandbox.audit import generate_manifest, generate_metadata
+    generate_manifest(output_dir, logs_dir)
+    generate_metadata(logs_dir, config.task_id, result.returncode, config.image, start_time)
     sys.exit(result.returncode)

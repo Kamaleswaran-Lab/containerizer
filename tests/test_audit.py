@@ -48,10 +48,12 @@ class TestMetadata:
             task_id="test-task-20260318-120000",
             exit_code=0,
             image="base-agent.sif",
+            start_time="2026-03-18T12:00:00+00:00",
         )
 
         meta = json.loads((logs_dir / "meta.json").read_text())
         assert meta["task_id"] == "test-task-20260318-120000"
         assert meta["exit_code"] == 0
-        assert "start_time" in meta
+        assert meta["start_time"] == "2026-03-18T12:00:00+00:00"
+        assert "end_time" in meta
         assert "node" in meta

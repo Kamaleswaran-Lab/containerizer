@@ -63,12 +63,16 @@ class TestContainall:
         )
 
     def test_cleanenv_strips_variables(self, sif_image: str) -> None:
-        result = run_in_container(
-            sif_image,
-            "echo ${SANDBOX_TEST_VAR:-unset}",
-            env_vars={},
-        )
-        assert "unset" in result.stdout
+        os.environ["SANDBOX_TEST_VAR"] = "host_value"
+        try:
+            result = run_in_container(
+                sif_image,
+                "echo ${SANDBOX_TEST_VAR:-unset}",
+                env_vars={},
+            )
+            assert "unset" in result.stdout
+        finally:
+            del os.environ["SANDBOX_TEST_VAR"]
 
     def test_explicit_env_passthrough(self, sif_image: str) -> None:
         result = run_in_container(

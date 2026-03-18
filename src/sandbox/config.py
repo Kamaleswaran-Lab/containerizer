@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -81,9 +82,10 @@ class TaskConfig:
 
         profile = get_profile()
 
-        # Add timestamp suffix to task_id
+        # Add timestamp suffix + random hex to task_id
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        task_id = f"{data['task_id']}-{timestamp}"
+        suffix = os.urandom(2).hex()
+        task_id = f"{data['task_id']}-{timestamp}-{suffix}"
 
         # Parse mounts
         mounts_data = data.get("mounts", {})

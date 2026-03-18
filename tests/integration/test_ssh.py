@@ -39,6 +39,10 @@ class TestSSHDConfig:
         content = open(config_path).read()
         assert "Port 2222" in content
         assert "PasswordAuthentication no" in content
+        # Verify container paths are used, not host paths
+        assert "/run/sshd/ssh_host_ed25519_key" in content
+        assert "/run/sshd/sshd.pid" in content
+        assert sshd_dir not in content
 
     def test_host_key_generated(self, tmp_path: Path) -> None:
         sshd_dir = str(tmp_path / "sshd")

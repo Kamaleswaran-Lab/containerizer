@@ -31,6 +31,7 @@ def generate_metadata(
     task_id: str,
     exit_code: int,
     image: str,
+    start_time: str,
 ) -> None:
     """Write task run metadata to meta.json."""
     meta = {
@@ -38,7 +39,8 @@ def generate_metadata(
         "exit_code": exit_code,
         "image": image,
         "node": socket.gethostname(),
-        "start_time": datetime.now(timezone.utc).isoformat(),
+        "start_time": start_time,
+        "end_time": datetime.now(timezone.utc).isoformat(),
         "job_id": os.environ.get("SLURM_JOB_ID", "unknown"),
     }
     meta_path = os.path.join(logs_dir, "meta.json")

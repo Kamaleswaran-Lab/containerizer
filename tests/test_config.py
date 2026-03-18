@@ -17,7 +17,10 @@ class TestConfigParsing:
     def test_task_id_gets_timestamp_suffix(self, minimal_config: dict) -> None:
         config = TaskConfig.from_dict(minimal_config)
         assert config.task_id.startswith("test-task-")
-        assert len(config.task_id) > len("test-task-")
+        # Format: test-task-YYYYMMDD-HHMMSS-XXXX (4 hex chars)
+        parts = config.task_id.split("-")
+        assert len(parts) >= 5  # task, task, date, time, hex
+        assert len(parts[-1]) == 4  # random hex suffix
 
     def test_missing_task_id_raises(self, minimal_config: dict) -> None:
         del minimal_config["task_id"]

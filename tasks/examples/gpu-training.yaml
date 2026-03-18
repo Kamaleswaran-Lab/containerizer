@@ -1,0 +1,25 @@
+task_id: gpu-training
+image: base-agent.sif
+
+mounts:
+  inputs:
+    - src: /projects/lab/data/training-data
+      dest: /input/data
+    - src: /projects/lab/models/checkpoints
+      dest: /input/checkpoints
+  environment:
+    - src: /projects/lab/envs/torch
+      dest: /opt/conda/envs/torch
+
+resources:
+  cpus: 8
+  mem_gb: 64
+  time: "08:00:00"
+  gpu: 2
+  partition: gpu
+
+deps:
+  conda_env: torch
+
+network: true
+entrypoint: claude

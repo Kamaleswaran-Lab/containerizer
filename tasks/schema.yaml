@@ -1,0 +1,51 @@
+# Task config schema reference
+# See src/sandbox/config.py for validation logic
+type: object
+required: [task_id, image]
+properties:
+  task_id:
+    type: string
+    description: Base name for the task. A timestamp suffix is auto-appended.
+  image:
+    type: string
+    description: Name of the .sif image file (looked up in profile image_dir)
+  mounts:
+    type: object
+    properties:
+      inputs:
+        type: array
+        items:
+          type: object
+          required: [src, dest]
+          properties:
+            src: { type: string, description: "Host path (must exist)" }
+            dest: { type: string, description: "Container path" }
+      environment:
+        type: array
+        items:
+          type: object
+          required: [src, dest]
+  setup:
+    type: object
+    properties:
+      copy:
+        type: array
+        items:
+          type: object
+          required: [src, dest]
+  resources:
+    type: object
+    properties:
+      cpus: { type: integer, default: 4 }
+      mem_gb: { type: integer, default: 16 }
+      time: { type: string, default: "02:00:00" }
+      gpu: { type: integer, default: 0 }
+      partition: { type: string, default: general }
+  network: { type: boolean, default: true }
+  deps:
+    type: object
+    properties:
+      conda_env: { type: string }
+      pip_requirements: { type: string }
+  entrypoint: { type: string, default: claude }
+  prompt: { type: string }

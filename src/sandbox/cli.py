@@ -204,3 +204,42 @@ def stop(task_id: str) -> None:
         click.echo(f"Cancelling SLURM job {jid}")
         subprocess.run(["scancel", jid], check=True)
     click.echo("Done.")
+
+
+@cli.command()
+@click.option("--image", type=click.Choice(["base-system", "base-agent", "all"]),
+              default="all", help="Which image to build")
+@click.option("--force", is_flag=True, help="Rebuild even if .sif exists")
+@click.option("--def-dir", default="definitions", type=click.Path(exists=True),
+              help="Directory containing .def files")
+def build(image: str, force: bool, def_dir: str) -> None:
+    """Build .sif container images from definition files."""
+    profile = get_profile()
+    os.makedirs(profile.image_dir, exist_ok=True)
+
+    targets = []
+    if image in ("all", "base-system"):
+        targets.append(("base-system", os.path.join(def_dir, "base-system.def")))
+    if image in ("all", "base-agent"):
+        targets.append(("base-agent", os.path.join(def_dir, "base-agent.def")))
+
+    for name, def_path in targets:
+        sif_path = os.path.join(profile.image_dir, f"{name}.sif")
+
+        if os.path.exists(sif_path) and not force:
+            click.echo(f"Skipping {name} (already exists, use --force to rebuild)")
+            continue
+
+        if not os.path.exists(def_path):
+            click.echo(f"Definition file not found: {def_path}")
+            continue
+
+        click.echo(f"Building {name}.sif from {def_path}...")
+        result = subprocess.run(
+            ["apptainer", "build", sif_path, def_path],
+        )
+        if result.returncode == 0:
+            click.echo(f"Built: {sif_path}")
+        else:
+            click.echo(f"Build failed for {name}")
+            sys.exit(1)

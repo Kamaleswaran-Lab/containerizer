@@ -1,0 +1,33 @@
+[project]
+name = "hpc-agent-sandbox"
+version = "0.1.0"
+description = "Run AI coding agents in isolated Apptainer containers on HPC clusters"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+]
+
+[project.scripts]
+sandbox = "sandbox.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sandbox"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires apptainer and real container runtime",
+    "e2e: end-to-end tests requiring SLURM allocation and cluster resources",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-timeout>=2.0",
+]

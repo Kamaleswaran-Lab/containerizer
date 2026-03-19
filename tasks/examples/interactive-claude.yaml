@@ -1,0 +1,17 @@
+task_id: interactive-claude
+image: base-agent.sif
+
+mounts:
+  inputs:
+    - src: /projects/lab/data/dataset1
+      dest: /input/data
+
+resources:
+  cpus: 4
+  mem_gb: 16
+  time: "02:00:00"
+  gpu: 0
+  partition: general
+
+network: true
+entrypoint: claude

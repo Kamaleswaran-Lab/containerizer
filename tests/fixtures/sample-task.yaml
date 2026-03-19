@@ -1,0 +1,17 @@
+task_id: test-task
+image: base-agent.sif
+
+mounts:
+  inputs:
+    - src: /tmp/sandbox-test-input
+      dest: /input/data
+
+resources:
+  cpus: 2
+  mem_gb: 8
+  time: "01:00:00"
+  gpu: 0
+  partition: general
+
+network: true
+entrypoint: claude

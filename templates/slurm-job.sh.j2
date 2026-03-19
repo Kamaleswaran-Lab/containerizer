@@ -1,0 +1,59 @@
+#!/bin/bash
+#SBATCH --job-name=sandbox-{{ task_id }}
+#SBATCH --cpus-per-task={{ resources.cpus }}
+#SBATCH --mem={{ resources.mem_gb }}G
+#SBATCH --time={{ resources.time }}
+#SBATCH --partition={{ resources.partition }}
+{% if resources.gpu > 0 %}
+#SBATCH --gres=gpu:{{ resources.gpu }}
+{% endif %}
+#SBATCH --output={{ logs_dir }}/slurm.out
+#SBATCH --error={{ logs_dir }}/slurm.err
+
+set -euo pipefail
+
+TASK_DIR="{{ task_dir }}"
+OUTPUT_DIR="{{ task_dir }}/output"
+LOGS_DIR="{{ task_dir }}/logs"
+
+echo "=== Sandbox Task: {{ task_id }} ==="
+echo "Node: $(hostname)"
+echo "Start: $(date -Iseconds)"
+echo "Image: {{ image_path }}"
+
+# Create directories
+mkdir -p "$OUTPUT_DIR" "$LOGS_DIR"
+
+# Copy task config snapshot
+cp "{{ config_path }}" "$LOGS_DIR/task.yaml"
+
+# Pre-populate workspace
+{% for copy in setup_copies %}
+echo "Copying {{ copy.src }} -> $OUTPUT_DIR/{{ copy.dest_name }}"
+cp -r "{{ copy.src }}" "$OUTPUT_DIR/{{ copy.dest_name }}"
+{% endfor %}
+
+# Launch container
+{{ apptainer_cmd }}
+EXIT_CODE=$?
+
+# Post-run
+echo "Exit code: $EXIT_CODE"
+echo "End: $(date -Iseconds)"
+
+# Generate manifest
+find "$OUTPUT_DIR" -type f -exec sha256sum {} \; > "$LOGS_DIR/manifest.txt" 2>/dev/null || true
+
+# Write metadata (no single-quote on heredoc so shell vars expand)
+cat > "$LOGS_DIR/meta.json" << METAEOF
+{
+  "task_id": "{{ task_id }}",
+  "job_id": "$SLURM_JOB_ID",
+  "node": "$(hostname)",
+  "start_time": "$(date -Iseconds)",
+  "exit_code": $EXIT_CODE,
+  "image": "{{ image_path }}"
+}
+METAEOF
+
+exit $EXIT_CODE

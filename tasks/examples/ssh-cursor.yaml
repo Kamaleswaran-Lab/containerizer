@@ -1,0 +1,28 @@
+task_id: ssh-cursor
+image: base-agent.sif
+
+mounts:
+  inputs:
+    - src: /projects/lab/data/dataset1
+      dest: /input/data
+  environment:
+    - src: /projects/lab/envs/ml
+      dest: /opt/conda/envs/ml
+
+setup:
+  copy:
+    - src: /projects/lab/repos/my-project
+      dest: /output/my-project
+
+resources:
+  cpus: 4
+  mem_gb: 32
+  time: "04:00:00"
+  gpu: 1
+  partition: gpu
+
+deps:
+  conda_env: ml
+
+network: true
+entrypoint: claude

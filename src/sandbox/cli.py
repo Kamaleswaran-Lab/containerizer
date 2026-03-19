@@ -225,8 +225,9 @@ def stop(task_id: str) -> None:
               help="Directory containing .def files")
 def build(image: str, force: bool, def_dir: str) -> None:
     """Build .sif container images from definition files."""
-    profile = get_profile()
-    os.makedirs(profile.image_dir, exist_ok=True)
+    repo_root = os.path.dirname(os.path.abspath(def_dir))
+    image_out_dir = os.path.join(repo_root, "images")
+    os.makedirs(image_out_dir, exist_ok=True)
 
     targets = []
     if image in ("all", "base-system"):
@@ -235,7 +236,7 @@ def build(image: str, force: bool, def_dir: str) -> None:
         targets.append(("base-agent", os.path.join(def_dir, "base-agent.def")))
 
     for name, def_path in targets:
-        sif_path = os.path.join(profile.image_dir, f"{name}.sif")
+        sif_path = os.path.join(image_out_dir, f"{name}.sif")
 
         if os.path.exists(sif_path) and not force:
             click.echo(f"Skipping {name} (already exists, use --force to rebuild)")
@@ -247,7 +248,8 @@ def build(image: str, force: bool, def_dir: str) -> None:
 
         click.echo(f"Building {name}.sif from {def_path}...")
         result = subprocess.run(
-            ["apptainer", "build", sif_path, def_path],
+            ["apptainer", "build", sif_path, os.path.abspath(def_path)],
+            cwd=image_out_dir,
         )
         if result.returncode == 0:
             click.echo(f"Built: {sif_path}")

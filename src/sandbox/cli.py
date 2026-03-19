@@ -225,8 +225,8 @@ def stop(task_id: str) -> None:
               help="Directory containing .def files")
 def build(image: str, force: bool, def_dir: str) -> None:
     """Build .sif container images from definition files."""
-    repo_root = os.path.dirname(os.path.abspath(def_dir))
-    image_out_dir = os.path.join(repo_root, "images")
+    profile = get_profile()
+    image_out_dir = profile.image_dir
     os.makedirs(image_out_dir, exist_ok=True)
 
     targets = []

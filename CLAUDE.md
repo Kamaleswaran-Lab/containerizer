@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HPC Agent Sandbox — a CLI tool (`sandbox`) that runs AI coding agents in isolated Apptainer containers on HPC clusters with SLURM job scheduling. Uses a two-layer container strategy: `base-system.sif` (OS + tools) and `base-agent.sif` (Claude Code + environment).
+HPC Agent Sandbox — a CLI tool (`sandbox`) that runs AI coding agents in isolated Apptainer containers on HPC clusters with SLURM job scheduling. Uses a two-layer container strategy: `base-system.sif` (OS + tools) and `base-agent.sif` (Claude Code + environment). Includes a skills system (`skills/`) for AI agent integration (install, configure, reference).
 
 ## Commands
 
@@ -13,13 +13,16 @@ HPC Agent Sandbox — a CLI tool (`sandbox`) that runs AI coding agents in isola
 uv sync --dev
 
 # Run unit tests (no container runtime needed)
-uv run pytest tests/ --ignore=tests/integration -v
+uv run pytest tests/ --ignore=tests/integration --ignore=tests/e2e -v
 
 # Run a single test
 uv run pytest tests/test_config.py::TestConfigParsing::test_valid_config_parses -v
 
 # Run integration tests (requires apptainer + .sif image)
 uv run pytest tests/integration/ -m integration -v
+
+# Run e2e tests (requires SLURM + cluster resources)
+uv run pytest tests/e2e/ -m e2e -v
 
 # CLI usage
 uv run sandbox --version
@@ -31,7 +34,7 @@ Always use `uv run` to invoke commands — never `source .venv/bin/activate`.
 
 ## Architecture
 
-**CLI layer** (`cli.py`): Click-based entry point with 5 subcommands: `shell`, `build`, `audit`, `cleanup`, `stop`. The `shell` command is the primary flow — it loads config, creates task directories, detects SLURM context, and dispatches to either direct apptainer exec or srun-wrapped execution.
+**CLI layer** (`cli.py`): Click-based entry point with 5 subcommands: `shell`, `build`, `audit`, `cleanup`, `stop`. The `shell` command is the primary flow — it loads config, creates task directories, detects SLURM context, and dispatches to either direct apptainer exec or srun-wrapped execution. The `build` command wraps `apptainer build` to produce `.sif` images from definition files.
 
 **Config pipeline** (`config.py` → `container.py`): YAML task configs are parsed into `TaskConfig` dataclasses with validation in `__post_init__`. `build_apptainer_cmd()` translates a `TaskConfig` into a full `apptainer exec --containall --cleanenv` command list with bind mounts, env vars, and GPU flags.
 
@@ -39,9 +42,15 @@ Always use `uv run` to invoke commands — never `source .venv/bin/activate`.
 
 **SSH mode** (`ssh.py`): Alternative entry path where the container runs `sshd` instead of an interactive shell. Generates host keys and `sshd_config` on the host side, but all config paths reference container mount points (`/run/sshd/...`) since sshd reads them inside the container.
 
-**Profiles** (`profiles/`): `DefaultProfile` frozen dataclass controls paths (scratch, images, tasks, IDE cache). Paths are configurable via `SANDBOX_SCRATCH` and `SANDBOX_IMAGE_DIR` env vars, defaulting to `/work/$USER/sandbox/`.
+**Cleanup** (`cleanup.py`): `find_task_dirs()` lists task directories with optional age filtering, `remove_task()` deletes them, `parse_duration()` converts human-friendly durations (7d, 24h) to seconds.
+
+**Profiles** (`profiles/`): `DefaultProfile` frozen dataclass controls paths (scratch, images, tasks, IDE cache). Scratch path defaults to `/work/$USER` (override with `SANDBOX_SCRATCH`). Image directory defaults to `/hpc/group/kamaleswaranlab/.images/containerizer` (override with `SANDBOX_IMAGE_DIR`).
 
 **Post-run audit** (`audit.py`): `generate_manifest()` produces SHA-256 checksums of all output files; `generate_metadata()` writes `meta.json` with task ID, exit code, timestamps, node, and SLURM job ID.
+
+**Container definitions** (`definitions/`): `base-system.def` (Ubuntu 22.04 + Python, Node.js, core tools) and `base-agent.def` (extends base-system with Claude Code + sandbox environment profile).
+
+**Skills** (`skills/`): Three agent skills for AI integration — `sandbox-install` (automated setup), `sandbox-configure` (task.yaml wizard), `sandbox-reference` (CLI command reference).
 
 ## Key Design Constraints
 
@@ -52,7 +61,11 @@ Always use `uv run` to invoke commands — never `source .venv/bin/activate`.
 
 ## Testing Approach
 
-Unit tests mock no external dependencies — they test config parsing, command building, and utility functions in-process. Integration tests (marked `@pytest.mark.integration`) require a real `apptainer` binary and `.sif` image; they run actual containers and verify isolation, mounts, and network behavior. The `run_in_container()` helper in `tests/integration/conftest.py` wraps `apptainer exec` calls.
+Three test tiers:
+
+- **Unit tests** (`tests/`): No external dependencies — test config parsing, command building, and utility functions in-process.
+- **Integration tests** (`tests/integration/`, `@pytest.mark.integration`): Require a real `apptainer` binary and `.sif` image; run actual containers and verify isolation, mounts, and network behavior. The `run_in_container()` helper in `tests/integration/conftest.py` wraps `apptainer exec` calls.
+- **E2E tests** (`tests/e2e/`, `@pytest.mark.e2e`): Require SLURM + cluster resources; test full `srun`-wrapped container execution, SSH mode, and shared-filesystem task directories.
 
 ## JaRVIS
 

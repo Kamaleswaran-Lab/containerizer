@@ -149,4 +149,5 @@ Containers run with `--containall --cleanenv`:
 Task directories and IDE cache live under `<scratch>/sandbox/`:
 - Default scratch: `/work/$USER`
 - Override with `SANDBOX_SCRATCH` environment variable
-- Image directory: override with `SANDBOX_IMAGE_DIR` environment variable
+- Default image directory: `/hpc/group/kamaleswaranlab/.images/containerizer`
+- Override with `SANDBOX_IMAGE_DIR` environment variable

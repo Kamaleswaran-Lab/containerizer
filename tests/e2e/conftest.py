@@ -20,6 +20,9 @@ def _find_image(name: str = "base-agent.sif") -> str:
     image = os.path.join(profile.image_dir, name)
     if os.path.exists(image):
         return image
+    group_path = Path("/hpc/group/kamaleswaranlab/.images/containerizer") / name
+    if group_path.exists():
+        return str(group_path)
     repo_root = Path(__file__).parent.parent.parent
     local = repo_root / "images" / name
     if local.exists():

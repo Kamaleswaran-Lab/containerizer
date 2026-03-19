@@ -6,7 +6,7 @@
 # A timestamp suffix is appended automatically at runtime.
 task_id: my-task
 
-# REQUIRED: Container image filename (must exist in images/ or $SANDBOX_IMAGE_DIR).
+# REQUIRED: Container image filename (must exist in $SANDBOX_IMAGE_DIR or /hpc/group/kamaleswaranlab/.images/containerizer).
 #   base-agent.sif  — Ubuntu 22.04 + dev tools + Claude Code pre-installed
 #   base-system.sif — Ubuntu 22.04 + dev tools only (no agent)
 image: base-agent.sif

@@ -10,6 +10,11 @@ From: ./base-system.sif
     # Install Claude Code
     npm install -g @anthropic-ai/claude-code
 
+    # Symlink so Claude Code is found at the native install path too
+    # (host .claude.json may have installMethod: native)
+    mkdir -p /home/sandbox/.local/bin
+    ln -sf /usr/bin/claude /home/sandbox/.local/bin/claude
+
     # Create sandbox environment profile script
     cat > /etc/profile.d/sandbox-env.sh << 'ENVEOF'
 #!/bin/bash
@@ -38,6 +43,12 @@ fi
 
 # Claude Code in PATH
 export PATH=/usr/local/bin:/usr/bin:$PATH
+
+# Ensure claude is at native install path (--home overlays /home/sandbox)
+if [ ! -e "$HOME/.local/bin/claude" ] && command -v claude &>/dev/null; then
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$(command -v claude)" "$HOME/.local/bin/claude"
+fi
 ENVEOF
 
     chmod +x /etc/profile.d/sandbox-env.sh

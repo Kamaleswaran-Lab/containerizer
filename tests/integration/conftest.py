@@ -8,23 +8,30 @@ from pathlib import Path
 from sandbox.profiles import get_profile
 
 
-def _find_image() -> str:
+def _find_image(name: str = "base-agent.sif") -> str:
     """Locate a .sif image for testing."""
     profile = get_profile()
-    image = os.path.join(profile.image_dir, "base-agent.sif")
+    image = os.path.join(profile.image_dir, name)
     if os.path.exists(image):
         return image
-    # Fallback: look in definitions/
     repo_root = Path(__file__).parent.parent.parent
-    local = repo_root / "definitions" / "base-agent.sif"
+    local = repo_root / "images" / name
     if local.exists():
         return str(local)
-    pytest.skip("No .sif image available for integration tests")
+    legacy = repo_root / "definitions" / name
+    if legacy.exists():
+        return str(legacy)
+    pytest.skip(f"No {name} image available for integration tests")
 
 
 @pytest.fixture(scope="session")
 def sif_image() -> str:
-    return _find_image()
+    return _find_image("base-agent.sif")
+
+
+@pytest.fixture(scope="session")
+def base_system_image() -> str:
+    return _find_image("base-system.sif")
 
 
 @pytest.fixture
@@ -49,6 +56,7 @@ def run_in_container(
     binds: list[str] | None = None,
     env_vars: dict[str, str] | None = None,
     extra_flags: list[str] | None = None,
+    timeout: int = 30,
 ) -> subprocess.CompletedProcess:
     """Helper to run a command inside the container."""
     cmd = ["apptainer", "exec", "--containall", "--cleanenv"]
@@ -66,4 +74,4 @@ def run_in_container(
     cmd.append(sif_image)
     cmd.extend(["bash", "-c", command])
 
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)

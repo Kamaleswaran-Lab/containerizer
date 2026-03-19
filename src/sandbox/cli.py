@@ -247,8 +247,12 @@ def build(image: str, force: bool, def_dir: str) -> None:
             continue
 
         click.echo(f"Building {name}.sif from {def_path}...")
+        build_cmd = ["apptainer", "build"]
+        if force:
+            build_cmd.append("--force")
+        build_cmd.extend([sif_path, os.path.abspath(def_path)])
         result = subprocess.run(
-            ["apptainer", "build", sif_path, os.path.abspath(def_path)],
+            build_cmd,
             cwd=image_out_dir,
         )
         if result.returncode == 0:

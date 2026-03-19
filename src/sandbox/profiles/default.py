@@ -17,7 +17,7 @@ class DefaultProfile:
     default_mem_gb: int = 16
     gpu_flag: str = "--nv"
     image_dir: str = field(default_factory=lambda: os.environ.get(
-        "SANDBOX_IMAGE_DIR", f"/work/{getpass.getuser()}/sandbox/images"
+        "SANDBOX_IMAGE_DIR", os.path.join(os.getcwd(), "images")
     ))
 
     @property

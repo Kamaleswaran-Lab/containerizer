@@ -45,6 +45,11 @@ def build_apptainer_cmd(
     if os.path.isdir(claude_dir):
         cmd.extend(["--bind", f"{claude_dir}:{container_home}/.claude:rw"])
 
+    # Claude Code config file
+    claude_json = os.path.join(home, ".claude.json")
+    if os.path.isfile(claude_json):
+        cmd.extend(["--bind", f"{claude_json}:{container_home}/.claude.json:rw"])
+
     # SSH mode mounts
     if ssh_mode:
         ssh_dir = os.path.join(home, ".ssh")

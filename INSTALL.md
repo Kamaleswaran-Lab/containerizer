@@ -20,19 +20,19 @@ Then ensure it's on PATH (source `~/.local/bin/env` or equivalent) and verify `u
 
 ## Step 2 — Install the Sandbox CLI
 
-Install the sandbox CLI as a dependency in the user's current project:
+Install the sandbox CLI as a standalone tool (no project context needed):
 
 ```bash
-uv add hpc-agent-sandbox --git https://github.com/Kamaleswaran-Lab/containerizer.git
+uv tool install "containerizer @ git+https://github.com/Kamaleswaran-Lab/containerizer.git"
 ```
 
 Verify the install:
 
 ```bash
-uv run sandbox --version
+sandbox --version
 ```
 
-If this fails, check `uv pip list` to confirm the package installed and troubleshoot from there.
+If this fails, check that `~/.local/bin` is on PATH (`uv tool update-shell`) and retry.
 
 ## Step 3 — Install Skills into Agent
 
@@ -44,7 +44,7 @@ The sandbox package includes three skills for day-to-day use:
 Find the skill files. They are in the `skills/` directory of the installed package. Locate them via:
 
 ```bash
-uv run python -c "import importlib.resources; print(importlib.resources.files('hpc_agent_sandbox'))"
+python -c "import importlib.resources; print(importlib.resources.files('sandbox'))"
 ```
 
 Or fetch them directly from the repo:

@@ -24,7 +24,7 @@ wheels = [
 ]
 
 [[package]]
-name = "hpc-agent-sandbox"
+name = "containerizer"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

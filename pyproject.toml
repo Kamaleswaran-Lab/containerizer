@@ -23,6 +23,7 @@ packages = ["src/sandbox"]
 testpaths = ["tests"]
 markers = [
     "integration: requires apptainer and real container runtime",
+    "e2e: end-to-end tests requiring SLURM allocation and cluster resources",
 ]
 
 [project.optional-dependencies]

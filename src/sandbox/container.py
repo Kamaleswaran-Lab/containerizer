@@ -52,8 +52,18 @@ def build_apptainer_cmd(
 
     # SSH mode mounts
     if ssh_mode:
-        ssh_dir = os.path.join(home, ".ssh")
-        if os.path.isdir(ssh_dir):
+        # Check $HOME first, then passwd entry home (in case $HOME was overridden)
+        ssh_dir = os.path.join(home, ".ssh") if home else None
+        if not (ssh_dir and os.path.isdir(ssh_dir)):
+            try:
+                import pwd
+                pw_home = pwd.getpwuid(os.getuid()).pw_dir
+                pw_ssh = os.path.join(pw_home, ".ssh")
+                if os.path.isdir(pw_ssh):
+                    ssh_dir = pw_ssh
+            except (KeyError, ImportError):
+                ssh_dir = None
+        if ssh_dir and os.path.isdir(ssh_dir):
             cmd.extend(["--bind", f"{ssh_dir}:{container_home}/.ssh:ro"])
 
         # IDE cache — mount to container home paths

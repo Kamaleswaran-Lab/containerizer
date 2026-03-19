@@ -94,15 +94,14 @@ def run_ssh_session(
     sshd_config = generate_sshd_config(sshd_dir, selected_port)
 
     # Build apptainer command with SSH mode
+    # Pass full sshd command as entrypoint so bash -l -c gets the whole string
     apptainer_cmd = build_apptainer_cmd(
         config,
         output_dir=output_dir,
         ssh_mode=True,
         sshd_dir=sshd_dir,
-        entrypoint_override="/usr/sbin/sshd",
+        entrypoint_override="/usr/sbin/sshd -D -f /run/sshd/sshd_config",
     )
-    # Append sshd flags after the entrypoint (use container path)
-    apptainer_cmd.extend(["-D", "-f", "/run/sshd/sshd_config"])
 
     hostname = socket.gethostname()
     click.echo(f"Sandbox SSH mode starting...")

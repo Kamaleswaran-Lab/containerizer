@@ -1,0 +1,61 @@
+# HPC Agent Sandbox — Task Configuration
+# All fields documented. Only task_id and image are required.
+# Omit optional fields to use defaults.
+
+# REQUIRED: Short identifier for this task (lowercase, hyphens ok).
+# A timestamp suffix is appended automatically at runtime.
+task_id: my-task
+
+# REQUIRED: Container image filename (must exist in images/ or $SANDBOX_IMAGE_DIR).
+#   base-agent.sif  — Ubuntu 22.04 + dev tools + Claude Code pre-installed
+#   base-system.sif — Ubuntu 22.04 + dev tools only (no agent)
+image: base-agent.sif
+
+# Data and environment mounts.
+# All mounts use { src: <host-path>, dest: <container-path> }.
+mounts:
+  # Read-only data directories the agent can access inside the container.
+  inputs:
+    # - src: /work/user/data/dataset1
+    #   dest: /input/dataset1
+
+  # Read-only environment mounts (conda envs, shared packages).
+  environment:
+    # - src: /work/user/conda/envs/myenv
+    #   dest: /opt/conda/envs/myenv
+
+# Files/directories to COPY into the writable workspace before the session starts.
+# The agent works on the copy — originals are never modified.
+setup:
+  copy:
+    # - src: /home/user/projects/my-repo
+    #   dest: /output/my-repo
+
+# SLURM resource allocation.
+resources:
+  cpus: 4              # CPU cores (default: 4)
+  mem_gb: 16           # Memory in GB (default: 16)
+  time: "02:00:00"     # Wall time limit HH:MM:SS (default: 02:00:00)
+  gpu: 0               # Number of GPUs (default: 0)
+  partition: general    # SLURM partition (default: general)
+
+# Dependency management.
+deps:
+  # Conda environment name to activate inside the container.
+  # Must be mounted via mounts.environment first.
+  # conda_env: myenv
+
+  # Path to requirements.txt to pip-install at container start.
+  # pip_requirements: /input/requirements.txt
+
+# Allow network access from the container (default: true).
+network: true
+
+# Command to run when the container starts.
+#   "claude" — launch Claude Code agent (default)
+#   "bash"   — interactive shell
+#   Or any custom command string.
+entrypoint: claude
+
+# Prompt to pass to the agent in batch mode (optional).
+# prompt: "Analyze the data in /input/dataset1 and write results to /output/"

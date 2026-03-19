@@ -60,7 +60,7 @@ export SANDBOX_IMAGE_DIR="/path/to/images"    # where .sif files live
 
 Run through and confirm each item:
 
-- [ ] `uv run sandbox --version` prints a version
+- [ ] `sandbox --version` prints a version
 - [ ] `apptainer --version` works
 - [ ] At least one `.sif` image is located
 - [ ] `SANDBOX_SCRATCH` is set or defaults to `/work/$USER`
@@ -74,9 +74,9 @@ Walk the user through a test run to confirm everything works end to end:
 1. Run `/sandbox-configure` to generate a test `task.yaml`
 2. Launch a sandbox session:
    ```bash
-   uv run sandbox shell --task task.yaml
+   sandbox shell --task task.yaml
    ```
 3. Report whether the container started successfully, then clean up:
    ```bash
-   uv run sandbox cleanup --older-than 0s
+   sandbox cleanup --older-than 0s
    ```

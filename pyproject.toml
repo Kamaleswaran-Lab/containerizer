@@ -1,5 +1,5 @@
 [project]
-name = "hpc-agent-sandbox"
+name = "containerizer"
 version = "0.1.0"
 description = "Run AI coding agents in isolated Apptainer containers on HPC clusters"
 requires-python = ">=3.11"

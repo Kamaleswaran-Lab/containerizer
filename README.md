@@ -1,4 +1,4 @@
-# HPC Agent Sandbox
+# Containerizer Sandbox
 
 Run AI coding agents (Claude Code, etc.) in isolated Apptainer containers on HPC clusters with SLURM job scheduling.
 
@@ -18,22 +18,22 @@ That's it. The agent handles the rest.
 
 ```bash
 # Launch an interactive sandbox session
-uv run sandbox shell --task task.yaml
+sandbox shell --task task.yaml
 
 # SSH mode for IDE access
-uv run sandbox shell --task task.yaml --ssh
+sandbox shell --task task.yaml --ssh
 
 # Build container images from definitions
-uv run sandbox build
+sandbox build
 
 # View task audit trail
-uv run sandbox audit --task-id <id>
+sandbox audit --task-id <id>
 
 # Clean up old tasks
-uv run sandbox cleanup --older-than 7d
+sandbox cleanup --older-than 7d
 
 # Stop a running task
-uv run sandbox stop --task-id <id>
+sandbox stop --task-id <id>
 ```
 
 ## CLI Subcommands

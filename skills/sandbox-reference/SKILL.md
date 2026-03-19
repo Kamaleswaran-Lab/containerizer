@@ -5,7 +5,7 @@ description: CLI command reference for HPC Agent Sandbox — all commands, flags
 
 # Sandbox CLI Reference
 
-Quick reference for the `sandbox` CLI. All commands are invoked via `uv run sandbox <command>` or just `sandbox <command>` if installed globally.
+Quick reference for the `sandbox` CLI. Commands are invoked via `sandbox <command>` (installed via `uv tool install`).
 
 ## Commands at a Glance
 

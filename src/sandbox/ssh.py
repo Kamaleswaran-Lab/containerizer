@@ -55,13 +55,12 @@ def generate_sshd_config(sshd_dir: str, port: int) -> str:
             check=True, capture_output=True,
         )
 
-    container_home = "/home/sandbox"
     hostname = socket.gethostname()
     config_content = f"""\
 Port {port}
 ListenAddress {hostname}
 HostKey /run/sshd/ssh_host_ed25519_key
-AuthorizedKeysFile {container_home}/.ssh/authorized_keys
+AuthorizedKeysFile /run/sshd/authorized_keys
 PasswordAuthentication no
 ChallengeResponseAuthentication no
 UsePAM no
@@ -75,6 +74,37 @@ PidFile /run/sshd/sshd.pid
         f.write(config_content)
 
     return config_path
+
+
+def _install_authorized_keys(sshd_dir: str) -> None:
+    """Copy the user's SSH public keys into sshd_dir/authorized_keys."""
+    import glob
+    import pwd
+
+    pubkeys = []
+    # Check $HOME first, then passwd entry home
+    candidates = [os.path.expanduser("~/.ssh")]
+    try:
+        pw_home = pwd.getpwuid(os.getuid()).pw_dir
+        pw_ssh = os.path.join(pw_home, ".ssh")
+        if pw_ssh not in candidates:
+            candidates.append(pw_ssh)
+    except KeyError:
+        pass
+
+    for ssh_dir in candidates:
+        if os.path.isdir(ssh_dir):
+            for path in glob.glob(os.path.join(ssh_dir, "*.pub")):
+                with open(path) as f:
+                    content = f.read().strip()
+                    if content:
+                        pubkeys.append(content)
+            break  # use first directory that exists
+
+    ak_path = os.path.join(sshd_dir, "authorized_keys")
+    with open(ak_path, "w") as f:
+        f.write("\n".join(pubkeys) + "\n" if pubkeys else "")
+    os.chmod(ak_path, 0o600)
 
 
 def run_ssh_session(
@@ -92,6 +122,11 @@ def run_ssh_session(
     job_id = os.environ.get("SLURM_JOB_ID")
     selected_port = select_port(job_id, port)
     sshd_config = generate_sshd_config(sshd_dir, selected_port)
+
+    # Copy user's public keys into sshd_dir as authorized_keys
+    # (placed at /run/sshd/authorized_keys in the container, avoiding
+    # overlap with the ~/.ssh bind mount)
+    _install_authorized_keys(sshd_dir)
 
     # Build apptainer command with SSH mode
     # Pass full sshd command as entrypoint so bash -l -c gets the whole string

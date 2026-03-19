@@ -127,15 +127,6 @@ class _SSHFixture:
         self._job_id: str | None = None
 
     def start(self) -> None:
-        # Set up authorized_keys in the output dir (which becomes container home)
-        pubkeys = _get_user_pubkeys()
-        ssh_auth_dir = os.path.join(self.output_dir, ".ssh")
-        os.makedirs(ssh_auth_dir, mode=0o700, exist_ok=True)
-        ak_path = os.path.join(ssh_auth_dir, "authorized_keys")
-        with open(ak_path, "w") as f:
-            f.write("\n".join(pubkeys) + "\n" if pubkeys else "")
-        os.chmod(ak_path, 0o600)
-
         # Load task config
         with open(self.task_config_path) as f:
             data = yaml.safe_load(f)
@@ -146,6 +137,14 @@ class _SSHFixture:
         os.makedirs(self.sshd_dir, exist_ok=True)
         self.port = select_port(None, None)
         generate_sshd_config(self.sshd_dir, self.port)
+
+        # Write authorized_keys into sshd_dir (mounted at /run/sshd)
+        # so it isn't overlaid by the ~/.ssh bind mount
+        pubkeys = _get_user_pubkeys()
+        ak_path = os.path.join(self.sshd_dir, "authorized_keys")
+        with open(ak_path, "w") as f:
+            f.write("\n".join(pubkeys) + "\n" if pubkeys else "")
+        os.chmod(ak_path, 0o600)
 
         # Build apptainer command with SSH mode
         # Pass full sshd command as entrypoint so bash -l -c gets the whole string

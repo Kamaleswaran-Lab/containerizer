@@ -86,7 +86,12 @@ def build_apptainer_cmd(
     cmd.append(image_path)
 
     # --- Entrypoint ---
+    # Wrap in login shell so /etc/profile.d scripts run (e.g. sandbox-env.sh
+    # creates the claude symlink needed when --home overlays /home/sandbox).
     entrypoint = entrypoint_override or config.entrypoint
-    cmd.append(entrypoint)
+    if entrypoint == "bash":
+        cmd.extend(["bash", "-l"])
+    else:
+        cmd.extend(["bash", "-l", "-c", entrypoint])
 
     return cmd

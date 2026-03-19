@@ -17,6 +17,9 @@ def generate_manifest(output_dir: str, logs_dir: str) -> None:
     for root, _, files in os.walk(output_dir):
         for filename in sorted(files):
             filepath = os.path.join(root, filename)
+            # Skip broken symlinks (e.g. container-only targets like /usr/bin/claude)
+            if os.path.islink(filepath) and not os.path.exists(filepath):
+                continue
             rel_path = os.path.relpath(filepath, output_dir)
             sha256 = _hash_file(filepath)
             lines.append(f"{sha256}  {rel_path}")

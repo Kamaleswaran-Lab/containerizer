@@ -217,6 +217,100 @@ def stop(task_id: str) -> None:
     click.echo("Done.")
 
 
+@cli.command("install-skills")
+@click.option("--platform", type=click.Choice(["claude", "cursor", "gemini", "generic"]),
+              default=None, help="Target platform (auto-detected if omitted)")
+@click.option("--global", "global_install", is_flag=True, help="Install to user-level directory instead of project")
+def install_skills(platform: str | None, global_install: bool) -> None:
+    """Install sandbox skills into your agent's command/rules directory."""
+    from sandbox.skills_installer import (
+        detect_platform, install_skills as do_install, PLATFORMS,
+    )
+
+    if platform is None:
+        platform = detect_platform()
+        click.echo(f"Detected platform: {platform}")
+
+    installed = do_install(platform, global_install)
+
+    for path in installed:
+        click.echo(f"  Installed: {path}")
+
+    if platform == "generic":
+        click.echo("\nSkills installed to ./skills/ — point your agent to this directory.")
+    else:
+        click.echo(f"\n{len(installed)} skill files installed.")
+
+
+@cli.command()
+def doctor() -> None:
+    """Check sandbox environment health."""
+    profile = get_profile()
+    ok_count = 0
+    warn_count = 0
+
+    # Check apptainer
+    result = subprocess.run(["apptainer", "--version"], capture_output=True, text=True)
+    if result.returncode == 0:
+        click.echo(f"[OK] apptainer: {result.stdout.strip()}")
+        ok_count += 1
+    else:
+        click.echo("[FAIL] apptainer not found — try: module load apptainer")
+        warn_count += 1
+
+    # Check SLURM
+    result = subprocess.run(["sinfo", "--version"], capture_output=True, text=True)
+    if result.returncode == 0:
+        click.echo(f"[OK] SLURM: {result.stdout.strip()}")
+        ok_count += 1
+    else:
+        click.echo("[WARN] SLURM not found (optional — sandbox can run without it)")
+        warn_count += 1
+
+    # Check image directory
+    image_dir = Path(profile.image_dir)
+    if image_dir.is_dir():
+        sif_files = list(image_dir.glob("*.sif"))
+        if sif_files:
+            click.echo(f"[OK] Image dir: {image_dir}")
+            for f in sif_files:
+                click.echo(f"     {f.name}")
+            ok_count += 1
+        else:
+            click.echo(f"[FAIL] Image dir exists but has no .sif files: {image_dir}")
+            warn_count += 1
+    else:
+        click.echo(f"[FAIL] Image dir not found: {image_dir}")
+        click.echo(f"       Set SANDBOX_IMAGE_DIR to the correct path")
+        warn_count += 1
+
+    # Check scratch path
+    scratch = Path(profile.scratch_base)
+    scratch_env = os.environ.get("SANDBOX_SCRATCH")
+    if scratch_env:
+        click.echo(f"[OK] SANDBOX_SCRATCH={scratch_env}")
+    else:
+        click.echo(f"[INFO] SANDBOX_SCRATCH not set — using default: {scratch}")
+
+    if os.access(scratch, os.W_OK):
+        click.echo(f"[OK] Scratch path writable: {scratch}")
+        ok_count += 1
+    else:
+        click.echo(f"[FAIL] Scratch path not writable: {scratch}")
+        click.echo(f"       Set SANDBOX_SCRATCH to a writable shared filesystem path")
+        warn_count += 1
+
+    # Check SANDBOX_IMAGE_DIR env
+    image_env = os.environ.get("SANDBOX_IMAGE_DIR")
+    if image_env:
+        click.echo(f"[OK] SANDBOX_IMAGE_DIR={image_env}")
+    else:
+        click.echo(f"[INFO] SANDBOX_IMAGE_DIR not set — using default: {profile.image_dir}")
+
+    # Summary
+    click.echo(f"\n{ok_count} passed, {warn_count} warnings/failures")
+
+
 @cli.command()
 @click.option("--image", type=click.Choice(["base-system", "base-agent", "all"]),
               default="all", help="Which image to build")

@@ -34,32 +34,24 @@ sandbox --version
 
 If this fails, check that `~/.local/bin` is on PATH (`uv tool update-shell`) and retry.
 
-## Step 3 — Install Skills into Agent
+## Step 3 — Install Skills
 
-The sandbox package includes three skills for day-to-day use:
-- **sandbox-install** — one-time setup (apptainer, images, environment)
-- **sandbox-configure** — interactive wizard to generate a `task.yaml`
-- **sandbox-reference** — CLI command reference
-
-Find the skill files. They are in the `skills/` directory of the installed package. Locate them via:
+The sandbox package bundles three skills for day-to-day use. Install them with a single command:
 
 ```bash
-python -c "import importlib.resources; print(importlib.resources.files('sandbox'))"
+sandbox install-skills
 ```
 
-Or fetch them directly from the repo:
-- `https://github.com/Kamaleswaran-Lab/containerizer.git` → `skills/sandbox-install/`
-- `https://github.com/Kamaleswaran-Lab/containerizer.git` → `skills/sandbox-configure/`
-- `https://github.com/Kamaleswaran-Lab/containerizer.git` → `skills/sandbox-reference/`
+This auto-detects your agent platform (Claude Code, Cursor, Gemini CLI) and copies skill files to the right location. You can also specify a platform explicitly:
 
-**How to install depends on the agent platform.** Figure out what the user is running and integrate accordingly:
+```bash
+sandbox install-skills --platform claude
+sandbox install-skills --platform cursor
+sandbox install-skills --platform gemini
+sandbox install-skills --platform generic   # copies to ./skills/
+```
 
-- **Claude Code**: Install as slash commands in `.claude/commands/` or copy skill files where the agent can reference them
-- **Cursor**: Add to `.cursor/rules/` or the project's rule configuration
-- **Gemini CLI**: Add to `.gemini/` context or tool configuration
-- **Other agents**: Ask the user how their agent loads context/skills and install appropriately
-
-Don't prescribe a single method — determine what makes sense for the user's setup.
+Use `--global` to install to the user-level directory instead of the current project.
 
 ## Step 4 — Restart and Complete Setup
 
